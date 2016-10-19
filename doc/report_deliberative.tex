@@ -26,13 +26,13 @@ First of all let us specify the elements that we need to define the state.
 $ C $ is the set of all cities in the topology. $ D $ is the set of all the
 delivery tasks currently in the topology including the ones that are being
 delivered.
-A task $ t $ is defined by $ t
-\coloneqq (o, d) $ where $ o, d \in C $, with $ o $ being the city where the
-task originated and $ d $ the destination city of the task.
-The state $ s $ of an agent is defined by $$ s \coloneqq (c, A, T) $$ where $c
-\in C$ is the city where the agent currently is, $ A \subseteq D $ is the set of
-avalaible tasks in the topology, $ T \subseteq D $ is the set of tasks that the
-agent is currently delivering.
+A task $ t $ is defined by $ t \coloneqq (o, d, w) $ where $ o, d \in C $, with
+$ o $ being the city where the task originated and $ d $ the destination city of
+the task, $ w $ is defined as the weight associated with this task. The state $
+s $ of an agent is defined by $$ s \coloneqq (c, A, T) $$ where $c \in C$ is the
+city where the agent currently is, $ A \subseteq D $ is the set of avalaible
+tasks in the topology, $ T \subseteq D $ is the set of tasks that the agent is
+currently delivering.
 
 \subsection{Goal State}
 % Describe the goal state %
@@ -48,7 +48,9 @@ An agent can do the following actions:
 \item Move to a neighbour $ n $ of the current city $ c $. $$ (c, A, T)
 \rightarrow (n, A, T) $$
 \item Pick up a task $ t $ in the current city $ c $. $$ (c, A, T) \rightarrow
-  (c, A', T') $$ where $ A' = A \setminus (t) $ and $ T' = T \cup (t) $
+  (c, A', T') $$ where $ A' = A \setminus (t) $ and $ T' = T \cup (t) $ with the
+  constraint that the sum of the weights of the tasks in $ T $ should not exceed
+  the maximum carrying capacity of the vehicle.
 \item Deliver a task $ t $ in the current city $ c $. $$ (c, A, T) \rightarrow
   (c, A, T') $$ where $ T' = T \setminus (t) $
 \end{itemize}
