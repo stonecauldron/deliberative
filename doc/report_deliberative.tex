@@ -45,8 +45,8 @@ delivered.
 % Describe the possible actions/transitions in your model %
 An agent can do the following actions:
 \begin{itemize}
-\item Move to a neighbour $ n $ of the current city $ c $. $$ (c, A, T)
-\rightarrow (n, A, T) $$
+\item Move to a city $ d $ where a task is available to pickup or deliver. $$
+(c, A, T) \rightarrow (d, A, T) $$
 \item Pick up a task $ t $ in the current city $ c $. $$ (c, A, T) \rightarrow
   (c, A', T') $$ where $ A' = A \setminus (t) $ and $ T' = T \cup (t) $ with the
   constraint that the sum of the weights of the tasks in $ T $ should not exceed
