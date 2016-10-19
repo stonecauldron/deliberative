@@ -1,10 +1,11 @@
-package template;
+package deliberate;
 
 /* import table */
-import logist.simulation.Vehicle;
+
 import logist.agent.Agent;
 import logist.behavior.DeliberativeBehavior;
 import logist.plan.Plan;
+import logist.simulation.Vehicle;
 import logist.task.Task;
 import logist.task.TaskDistribution;
 import logist.task.TaskSet;
@@ -17,33 +18,29 @@ import logist.topology.Topology.City;
 @SuppressWarnings("unused")
 public class DeliberativeTemplate implements DeliberativeBehavior {
 
-	enum Algorithm { BFS, ASTAR }
-	
 	/* Environment */
 	Topology topology;
 	TaskDistribution td;
-	
 	/* the properties of the agent */
 	Agent agent;
 	int capacity;
-
 	/* the planning class */
 	Algorithm algorithm;
-	
+
 	@Override
 	public void setup(Topology topology, TaskDistribution td, Agent agent) {
 		this.topology = topology;
 		this.td = td;
 		this.agent = agent;
-		
+
 		// initialize the planner
 		int capacity = agent.vehicles().get(0).capacity();
 		String algorithmName = agent.readProperty("algorithm", String.class, "ASTAR");
-		
-		// Throws IllegalArgumentException if algorithm is unknown
+
+        // Throws IllegalArgumentException if algorithm is unknown
 		algorithm = Algorithm.valueOf(algorithmName.toUpperCase());
-		
-		// ...
+
+        // ...
 	}
 	
 	@Override
@@ -62,8 +59,8 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 			break;
 		default:
 			throw new AssertionError("Should not happen.");
-		}		
-		return plan;
+        }
+        return plan;
 	}
 	
 	private Plan naivePlan(Vehicle vehicle, TaskSet tasks) {
@@ -89,13 +86,15 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 		return plan;
 	}
 
-	@Override
+    @Override
 	public void planCancelled(TaskSet carriedTasks) {
-		
-		if (!carriedTasks.isEmpty()) {
+
+        if (!carriedTasks.isEmpty()) {
 			// This cannot happen for this simple agent, but typically
 			// you will need to consider the carriedTasks when the next
 			// plan is computed.
 		}
 	}
+
+    enum Algorithm {BFS, ASTAR}
 }
