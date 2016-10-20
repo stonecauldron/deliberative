@@ -11,17 +11,18 @@ class StateNode {
     private City currentCity;
     private TaskSet avalaibleTasks, takenTasks;
     private Transition parentTransition;
+    private double currentWeight;
 
-    public StateNode(City currentCity, TaskSet avalaibleTasks, TaskSet takenTasks, Transition parentTransition) {
+    public StateNode(City currentCity, TaskSet avalaibleTasks, TaskSet takenTasks, Transition parentTransition, double currentWeight) {
         this.currentCity = currentCity;
         this.avalaibleTasks = avalaibleTasks;
         this.takenTasks = takenTasks;
         this.parentTransition = parentTransition;
-        //TODO still need to take into account the weight of the tasks
+        this.currentWeight = currentWeight;
     }
 
     public static StateNode initialNode(City current, TaskSet avalaible) {
-        return new StateNode(current, avalaible, TaskSet.noneOf(avalaible), null);
+        return new StateNode(current, avalaible, TaskSet.noneOf(avalaible), null, 0);
     }
 
     @Override
@@ -50,7 +51,7 @@ class StateNode {
     /**
      * Generate all the successor of a given state
      */
-    private Set<StateNode> generateSuccessors() {
+    private Set<StateNode> generateSuccessors(final double maximumLoad) {
         Set<StateNode> result = new HashSet<>();
         for (Transition.Type actionType : Transition.Type.values()) {
             switch (actionType) {
@@ -59,14 +60,16 @@ class StateNode {
                     Set<City> destinationCities = generateCitiesOfInterest();
                     for (City d : destinationCities) {
                         Transition trans = new Transition(actionType, currentCity, d, null);
-                        result.add(new StateNode(d, avalaibleTasks, takenTasks, trans));
+                        result.add(new StateNode(d, avalaibleTasks, takenTasks, trans, currentWeight));
                     }
                     break;
 
                 case PICKUP:
                     for (Task t : avalaibleTasks) {
-                        // agent can only pickup tasks in its current city
-                        if (t.pickupCity == currentCity) {
+                        double potentialWeight = currentWeight + t.weight;
+
+                        // agent can only pickup tasks in its current city and if its weight is lower than maximum load
+                        if (t.pickupCity == currentCity && potentialWeight <= maximumLoad) {
                             Transition trans = new Transition(actionType, currentCity, null, t);
 
                             TaskSet newAvailableTasks = TaskSet.copyOf(avalaibleTasks);
@@ -74,7 +77,7 @@ class StateNode {
                             newAvailableTasks.remove(t);
                             newTakenTasks.remove(t);
 
-                            result.add(new StateNode(currentCity, newAvailableTasks, newTakenTasks, trans));
+                            result.add(new StateNode(currentCity, newAvailableTasks, newTakenTasks, trans, currentWeight + t.weight));
                         }
                     }
                     break;
@@ -89,7 +92,7 @@ class StateNode {
                             // task is delivered so we can get rid of it
                             newTakenTasks.remove(t);
 
-                            result.add(new StateNode(currentCity, avalaibleTasks, newTakenTasks, trans));
+                            result.add(new StateNode(currentCity, avalaibleTasks, newTakenTasks, trans, currentWeight - t.weight));
                         }
                     }
                     break;
