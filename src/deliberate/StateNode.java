@@ -56,6 +56,7 @@ class Solver {
         while(!paths.isEmpty()){
 
             Transition currentTransition = paths.poll();
+            System.out.println(currentTransition);
 
             if(currentTransition.getState().isGoalNode()){
                 return convertToPlan(currentTransition);
@@ -93,16 +94,14 @@ class StateNode {
 
     public StateNode(
             City currentCity,
-            TaskSet avalaibleTasks,
+            TaskSet availableTasks,
             TaskSet takenTasks,
             double currentWeight) {
 
         this.currentCity = currentCity;
-        this.availableTasks = avalaibleTasks;
+        this.availableTasks = availableTasks;
         this.takenTasks = takenTasks;
         this.currentWeight = currentWeight;
-
-        System.out.println(this.takenTasks.size()+"/"+this.availableTasks.size());
 
     }
 
@@ -164,6 +163,8 @@ class StateNode {
             result.add(t.deliveryCity);
         }
 
+        result.remove(this.getVehicleCity());
+
         return result;
     }
 
@@ -206,6 +207,7 @@ class StateNode {
 
         // PICKUP ____________________________________________
         for (Task t : this.getAvailableTasks()) {
+
             if(t.pickupCity == this.getVehicleCity() && t.weight + this.getVehicleWeight() <= maximumLoad){
 
                 TaskSet newAvailableTasks = TaskSet.copyOf(this.getAvailableTasks());
@@ -371,7 +373,25 @@ class Transition implements Comparable<Transition> {
      * @return the heuristic cost estimation to the goal state (under estimate)
      */
     public double heuristic(){
-        return -1;
+
+        Set<CityEdge> edges = new HashSet<>();
+        for(Task t : this.getState().getAvailableTasks()){
+
+            City prevCity = t.pickupCity;
+
+            for(City c : t.pickupCity.pathTo(t.deliveryCity)){
+                edges.add(new CityEdge(prevCity, c));
+                prevCity = c;
+            }
+
+        }
+
+        double minCost = 0.0;
+        for(CityEdge c : edges){
+            minCost += c.distance();
+        }
+
+        return minCost;
     }
 
 
@@ -391,3 +411,33 @@ class Transition implements Comparable<Transition> {
 
 }
 
+
+/**
+ * tuple for heuristic
+ */
+class CityEdge {
+
+    private City from, to;
+
+    public CityEdge(City from, City to){
+        this.from = from;
+        this.to = to;
+    }
+
+    public double distance(){
+        return from.distanceTo(to);
+    }
+
+    @Override
+    public int hashCode(){
+        return from.hashCode() + 31*to.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object that){
+        return that instanceof CityEdge &&
+                ((CityEdge)that).from == this.from &&
+                ((CityEdge)that).to == this.to;
+    }
+
+}
