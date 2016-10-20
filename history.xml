@@ -4,3 +4,41 @@
 	<agents>
 		<agent name="deliberative-random">
 			<vehicle name="Vehicle 1"/>
+		</agent>
+	</agents>
+	<rounds>
+		<round id="1">
+			<tasks>
+				<task id="0" pickup="Aarau" delivery="Genève" weight="3" reward="36797"/>
+				<task id="1" pickup="Zürich" delivery="Sion" weight="3" reward="40875"/>
+				<task id="2" pickup="Sion" delivery="Genève" weight="3" reward="59223"/>
+				<task id="3" pickup="Basel" delivery="St-Gallen" weight="3" reward="59223"/>
+				<task id="4" pickup="Lausanne" delivery="St-Gallen" weight="3" reward="18448"/>
+				<task id="5" pickup="Sion" delivery="Basel" weight="3" reward="46991"/>
+			</tasks>
+			<events>
+				<event id="0" time="0" vehicle="Vehicle 1" pickup="4"/>
+				<event id="1" time="299999996" vehicle="Vehicle 1" pickup="0"/>
+				<event id="2" time="599999986" vehicle="Vehicle 1" pickup="1"/>
+				<event id="3" time="899999975" vehicle="Vehicle 1" deliver="1"/>
+				<event id="4" time="1199999963" vehicle="Vehicle 1" pickup="2"/>
+				<event id="5" time="1499999950" vehicle="Vehicle 1" pickup="5"/>
+				<event id="6" time="1799999937" vehicle="Vehicle 1" deliver="5"/>
+				<event id="7" time="2099999928" vehicle="Vehicle 1" pickup="3"/>
+				<event id="8" time="2399999917" vehicle="Vehicle 1" deliver="3"/>
+				<event id="9" time="2699999909" vehicle="Vehicle 1" deliver="4"/>
+				<event id="10" time="2999999899" vehicle="Vehicle 1" deliver="0"/>
+				<event id="11" time="3299999886" vehicle="Vehicle 1" deliver="2"/>
+			</events>
+		</round>
+	</rounds>
+	<statistics>
+		<stat rank="1" agent="deliberative-random">
+			<total-tasks value="6"/>
+			<total-distance value="0.0"/>
+			<total-cost value="0"/>
+			<total-reward value="261557"/>
+			<total-profit value="261557"/>
+		</stat>
+	</statistics>
+</history>

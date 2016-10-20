@@ -47,7 +47,9 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 
 	@Override
 	public Plan plan(Vehicle vehicle, TaskSet tasks) {
-        return new Solver(vehicle,tasks).execute(algorithm);
+        Plan plan = new Solver(vehicle,tasks).execute(algorithm);
+        System.out.println(plan);
+        return plan;
 	}
 
 

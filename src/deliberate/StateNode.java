@@ -34,9 +34,11 @@ class Solver {
     private Plan convertToPlan(Transition transition){
 
         List<Action> actions = new ArrayList<>();
+        City currCity = initialNode.getVehicleCity();
 
         do {
-            actions.add(transition.toAction());
+            actions.addAll(transition.toAction(currCity));
+            currCity = transition.getState().getVehicleCity();
         }while( (transition = transition.getPredecessor()) != null );
 
         Collections.reverse(actions);
@@ -72,7 +74,7 @@ class Solver {
 
         }
 
-        return null;
+        throw new IllegalStateException("unsolvable");
     }
 
 
@@ -100,8 +102,7 @@ class StateNode {
         this.takenTasks = takenTasks;
         this.currentWeight = currentWeight;
 
-        System.out.println(this.takenTasks.size());
-        System.out.println(this.availableTasks.size());
+        System.out.println(this.takenTasks.size()+"/"+this.availableTasks.size());
 
     }
 
@@ -153,10 +154,14 @@ class StateNode {
     public Set<City> interestingMove(double maximumLoad) {
 
         Set<City> result = new HashSet<>();
-        for (Task t : availableTasks) {
+        for (Task t : this.getAvailableTasks()) {
             if(t.weight + currentWeight <= maximumLoad){
                 result.add(t.pickupCity);
             }
+        }
+
+        for(Task t : this.getTakenTasks()){
+            result.add(t.deliveryCity);
         }
 
         return result;
@@ -218,6 +223,11 @@ class StateNode {
 
                 result.add(new Transition(toState, parent, Transition.Type.PICKUP, t, cost));
             }
+        }
+
+        // avoid dumb action : move twice => useless
+        if(parent != null && parent.getType() == Transition.Type.MOVE){
+            return result;
         }
 
 
@@ -340,15 +350,21 @@ class Transition implements Comparable<Transition> {
     /**
      * @return the coresponding action of the transition
      */
-    public Action toAction(){
+    public List<Action> toAction(City fromCity){
+
+        List<Action> actions = new ArrayList<>();
 
         switch(this.getType()){
-            case PICKUP: return new Action.Pickup(this.getTask());
-            case MOVE : return new Action.Move(this.getState().getVehicleCity());
-            case DELIVER: return new Action.Delivery(this.getTask());
-            default : return null;
+            case PICKUP: actions.add(new Action.Pickup(this.getTask())); break;
+            case MOVE :
+                for(City c : this.getState().getVehicleCity().pathTo(fromCity)){
+                    actions.add(new Action.Move(c));
+                }
+                break;
+            case DELIVER: actions.add(new Action.Delivery(this.getTask())); break;
         }
 
+        return actions;
     }
 
     /**
