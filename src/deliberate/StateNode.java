@@ -1,28 +1,243 @@
 package deliberate;
 
+import logist.plan.Action;
+import logist.plan.Plan;
+import logist.simulation.Vehicle;
 import logist.task.Task;
 import logist.task.TaskSet;
 import logist.topology.Topology.City;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
-class StateNode {
-    private City currentCity;
-    private TaskSet avalaibleTasks, takenTasks;
-    private Transition parentTransition;
-    private double currentWeight;
 
-    public StateNode(City currentCity, TaskSet avalaibleTasks, TaskSet takenTasks, Transition parentTransition, double currentWeight) {
-        this.currentCity = currentCity;
-        this.avalaibleTasks = avalaibleTasks;
-        this.takenTasks = takenTasks;
-        this.parentTransition = parentTransition;
-        this.currentWeight = currentWeight;
+
+
+
+class Solver {
+
+
+    private StateNode initialNode;
+
+    private Vehicle vehicle;
+
+
+
+    public Solver(
+            Vehicle vehicle,
+            TaskSet tasks){
+
+        this.initialNode = StateNode.initialNode(vehicle.getCurrentCity(),tasks);
+        this.vehicle = vehicle;
     }
 
+
+    private Plan convertToPlan(Transition transition){
+
+        List<Action> actions = new ArrayList<>();
+
+        do {
+            actions.add(transition.toAction());
+        }while( (transition = transition.getPredecessor()) != null );
+
+        Collections.reverse(actions);
+
+        return new Plan(this.initialNode.getVehicleCity(),actions);
+    }
+
+
+
+    public Plan execute(DeliberativeTemplate.Algorithm algo){
+
+        LinkedList<Transition> paths = new LinkedList<>();
+        paths.addAll(initialNode.generateSuccessors(null,this.vehicle.capacity(),this.vehicle.costPerKm()));
+
+        while(!paths.isEmpty()){
+
+            Transition currentTransition = paths.poll();
+
+            if(currentTransition.getState().isGoalNode()){
+                return convertToPlan(currentTransition);
+            }
+
+            paths.addAll(
+                    currentTransition
+                            .getState()
+                            .generateSuccessors(currentTransition,this.vehicle.capacity(),this.vehicle.costPerKm())
+            );
+
+
+            if(algo == DeliberativeTemplate.Algorithm.ASTAR){
+                Collections.sort(paths);
+            }
+
+        }
+
+        return null;
+    }
+
+
+}
+
+
+
+
+class StateNode {
+
+
+    private City currentCity;
+    private TaskSet availableTasks, takenTasks;
+    private double currentWeight;
+
+
+    public StateNode(
+            City currentCity,
+            TaskSet avalaibleTasks,
+            TaskSet takenTasks,
+            double currentWeight) {
+
+        this.currentCity = currentCity;
+        this.availableTasks = avalaibleTasks;
+        this.takenTasks = takenTasks;
+        this.currentWeight = currentWeight;
+
+        System.out.println(this.takenTasks.size());
+        System.out.println(this.availableTasks.size());
+
+    }
+
+
     public static StateNode initialNode(City current, TaskSet avalaible) {
-        return new StateNode(current, avalaible, TaskSet.noneOf(avalaible), null, 0);
+        return new StateNode(current, avalaible, TaskSet.noneOf(avalaible), 0);
+    }
+
+
+    /**
+     * @return the vehicle's city in the current state
+     */
+    public City getVehicleCity(){
+        return currentCity;
+    }
+
+
+    /**
+     * @return all tasks not already deliver/loaded_in_the_vehicle
+     */
+    public TaskSet getAvailableTasks(){
+        return availableTasks;
+    }
+
+    /**
+     * @return all tasks loaded in the vehicle
+     */
+    public TaskSet getTakenTasks(){
+        return takenTasks;
+    }
+
+    /**
+     * @return the total weight in the vehicle
+     */
+    public double getVehicleWeight(){
+        return currentWeight;
+    }
+
+    /**
+     * @return true if the state is a goal node
+     */
+    public boolean isGoalNode(){
+        return this.availableTasks.isEmpty() && this.takenTasks.isEmpty();
+    }
+
+    /**
+     * Generate the set of cities where the agent can pickup objects
+     */
+    public Set<City> interestingMove(double maximumLoad) {
+
+        Set<City> result = new HashSet<>();
+        for (Task t : availableTasks) {
+            if(t.weight + currentWeight <= maximumLoad){
+                result.add(t.pickupCity);
+            }
+        }
+
+        return result;
+    }
+
+
+    /**
+     * Generate the next possible transitions from the current state
+     * or a deliver action singleton if any
+     */
+    public Set<Transition> generateSuccessors(Transition parent, final double maximumLoad, double costPerKm) {
+
+        Set<Transition> result = new HashSet<>();
+
+        double currentCost = parent != null ? parent.getCost() : 0;
+
+        // DELIVER ____________________________________________
+        for (Task t : this.getTakenTasks()) {
+
+            // agent can only deliver tasks in its current city
+            if (t.deliveryCity == this.getVehicleCity()) {
+
+                TaskSet newTakenTasks = TaskSet.copyOf(this.getTakenTasks());
+                newTakenTasks.remove(t);
+
+                StateNode toState = new StateNode(
+                        this.getVehicleCity(),
+                        this.getAvailableTasks(),
+                        newTakenTasks,
+                        this.getVehicleWeight()-t.weight);
+
+                double cost = currentCost;
+
+                result.add(new Transition(toState, parent, Transition.Type.DELIVER, t, cost));
+
+                // in case we are able to deliver something
+                // this action will always be taken (0 cost + one passed subgoal)
+                return result;
+            }
+        }
+
+
+        // PICKUP ____________________________________________
+        for (Task t : this.getAvailableTasks()) {
+            if(t.pickupCity == this.getVehicleCity() && t.weight + this.getVehicleWeight() <= maximumLoad){
+
+                TaskSet newAvailableTasks = TaskSet.copyOf(this.getAvailableTasks());
+                TaskSet newTakenTasks = TaskSet.copyOf(this.getTakenTasks());
+                newAvailableTasks.remove(t);
+                newTakenTasks.add(t);
+
+                StateNode toState = new StateNode(
+                        this.getVehicleCity(),
+                        newAvailableTasks,
+                        newTakenTasks,
+                        this.getVehicleWeight()+t.weight);
+
+                double cost = currentCost;
+
+                result.add(new Transition(toState, parent, Transition.Type.PICKUP, t, cost));
+            }
+        }
+
+
+        // MOVE ______________________________________________
+        for (City nextVehicleCity : this.interestingMove(maximumLoad)) {
+
+            StateNode toState = new StateNode(
+                    nextVehicleCity,
+                    this.getAvailableTasks(),
+                    this.getTakenTasks(),
+                    this.getVehicleWeight());
+
+            double cost = currentCost + this.getVehicleCity().distanceTo(toState.getVehicleCity())*costPerKm;
+
+            result.add(new Transition(toState, parent, Transition.Type.MOVE, null, cost));
+        }
+
+
+
+        return result;
     }
 
     @Override
@@ -33,102 +248,130 @@ class StateNode {
         StateNode stateNode = (StateNode) o;
 
         if (!currentCity.equals(stateNode.currentCity)) return false;
-        if (!avalaibleTasks.equals(stateNode.avalaibleTasks)) return false;
+        if (!availableTasks.equals(stateNode.availableTasks)) return false;
         if (!takenTasks.equals(stateNode.takenTasks)) return false;
-        return parentTransition != null ? parentTransition.equals(stateNode.parentTransition) : stateNode.parentTransition == null;
+        return true;
 
     }
 
     @Override
     public int hashCode() {
         int result = currentCity.hashCode();
-        result = 31 * result + avalaibleTasks.hashCode();
-        result = 31 * result + takenTasks.hashCode();
-        result = 31 * result + (parentTransition != null ? parentTransition.hashCode() : 0);
+        result = 31 * result + availableTasks.hashCode();
+        result = 107 * result + takenTasks.hashCode();
         return result;
     }
 
-    /**
-     * Generate all the successor of a given state
-     */
-    private Set<StateNode> generateSuccessors(final double maximumLoad) {
-        Set<StateNode> result = new HashSet<>();
-        for (Transition.Type actionType : Transition.Type.values()) {
-            switch (actionType) {
-
-                case MOVE:
-                    Set<City> destinationCities = generateCitiesOfInterest();
-                    for (City d : destinationCities) {
-                        Transition trans = new Transition(actionType, currentCity, d, null);
-                        result.add(new StateNode(d, avalaibleTasks, takenTasks, trans, currentWeight));
-                    }
-                    break;
-
-                case PICKUP:
-                    for (Task t : avalaibleTasks) {
-                        double potentialWeight = currentWeight + t.weight;
-
-                        // agent can only pickup tasks in its current city and if its weight is lower than maximum load
-                        if (t.pickupCity == currentCity && potentialWeight <= maximumLoad) {
-                            Transition trans = new Transition(actionType, currentCity, null, t);
-
-                            TaskSet newAvailableTasks = TaskSet.copyOf(avalaibleTasks);
-                            TaskSet newTakenTasks = TaskSet.copyOf(takenTasks);
-                            newAvailableTasks.remove(t);
-                            newTakenTasks.add(t);
-
-                            result.add(new StateNode(currentCity, newAvailableTasks, newTakenTasks, trans, currentWeight + t.weight));
-                        }
-                    }
-                    break;
-
-                case DELIVER:
-                    for (Task t : takenTasks) {
-                        // agent can only deliver tasks in its current city
-                        if (t.deliveryCity == currentCity) {
-                            Transition trans = new Transition(actionType, currentCity, null, t);
-
-                            TaskSet newTakenTasks = TaskSet.copyOf(takenTasks);
-                            // task is delivered so we can get rid of it
-                            newTakenTasks.remove(t);
-
-                            result.add(new StateNode(currentCity, avalaibleTasks, newTakenTasks, trans, currentWeight - t.weight));
-                        }
-                    }
-                    break;
-            }
-        }
-        return result;
-    }
-
-    /**
-     * Generate the set of cities where the agent can either deliver or pickup a task
-     */
-    private Set<City> generateCitiesOfInterest() {
-        Set<City> result = new HashSet<>();
-        for (Task t : avalaibleTasks) {
-            result.add(t.pickupCity);
-        }
-        for (Task t : takenTasks) {
-            result.add(t.deliveryCity);
-        }
-
-        return result;
-    }
 }
 
-class Transition {
+
+
+
+
+
+class Transition implements Comparable<Transition> {
+
+    // three possible action
+    enum Type {MOVE, PICKUP, DELIVER}
+
+    // linkedList/tree fashion (one known predecessor / many unknown sucessors)
+    // i.e : we can rewind from a state to initialState
+    private Transition predecessor;
+
+    //track the current state
+    private StateNode state;
+
+    // track the last move
     private Type type;
-    private City destination;
-    private Task task;
+
+    // current cost
     private double cost;
 
-    public Transition(Type type, City current, City destination, Task task) {
+    private Task task = null;
+
+
+
+    public Transition(StateNode state, Transition predecessor, Type type, Task task, double cost){
+        this.state = state;
+        this.predecessor = predecessor;
         this.type = type;
-        this.destination = destination;
+        this.cost = cost;
         this.task = task;
-        this.cost = destination != null ? current.distanceTo(destination) : 0;
     }
 
-    enum Type {MOVE, PICKUP, DELIVER}
+
+
+    /**
+     * @return the transition taken just before this one
+     */
+    public Transition getPredecessor(){
+        return predecessor;
+    }
+
+    /**
+     * @return the snapshot of the world
+     */
+    public StateNode getState(){
+        return state;
+    }
+
+    /**
+     * @return the type of action executed during this transition
+     */
+    public Type getType(){
+        return type;
+    }
+
+    /**
+     * @return the task of the transition or null
+     */
+    public Task getTask(){
+        return task;
+    }
+
+    /**
+     * @return the cost of all the transitions taken to arrives in this.getState
+     */
+    public double getCost(){
+        return cost;
+    }
+
+
+    /**
+     * @return the coresponding action of the transition
+     */
+    public Action toAction(){
+
+        switch(this.getType()){
+            case PICKUP: return new Action.Pickup(this.getTask());
+            case MOVE : return new Action.Move(this.getState().getVehicleCity());
+            case DELIVER: return new Action.Delivery(this.getTask());
+            default : return null;
+        }
+
+    }
+
+    /**
+     * @return the heuristic cost estimation to the goal state (under estimate)
+     */
+    public double heuristic(){
+        return -1;
+    }
+
+
+    @Override
+    public int compareTo(Transition that) {
+        double thatCost = that.cost + that.heuristic();
+        double thisCost = this.cost + this.heuristic();
+        return thisCost > thatCost ? 1 :
+                thisCost == thatCost ? 0 :
+                -1;
+    }
+
+    @Override
+    public String toString(){
+        return "(" + this.getState().getVehicleCity() + "/" +this.getType()+")";
+    }
+
 }
+

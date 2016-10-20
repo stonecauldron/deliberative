@@ -19,49 +19,38 @@ import logist.topology.Topology.City;
 public class DeliberativeTemplate implements DeliberativeBehavior {
 
 	/* Environment */
-	Topology topology;
-	TaskDistribution td;
+	private Topology topology;
+	private TaskDistribution td;
 	/* the properties of the agent */
-	Agent agent;
-	int capacity;
+	private Agent agent;
 	/* the planning class */
-	Algorithm algorithm;
+	private Algorithm algorithm;
+
+
 
 	@Override
 	public void setup(Topology topology, TaskDistribution td, Agent agent) {
-		this.topology = topology;
+
+        this.topology = topology;
 		this.td = td;
 		this.agent = agent;
 
 		// initialize the planner
-		int capacity = agent.vehicles().get(0).capacity();
 		String algorithmName = agent.readProperty("algorithm", String.class, "ASTAR");
 
         // Throws IllegalArgumentException if algorithm is unknown
-		algorithm = Algorithm.valueOf(algorithmName.toUpperCase());
+		this.algorithm = Algorithm.valueOf(algorithmName.toUpperCase());
 
-        // ...
+
 	}
-	
+
+
 	@Override
 	public Plan plan(Vehicle vehicle, TaskSet tasks) {
-		Plan plan;
-
-		// Compute the plan with the selected algorithm.
-		switch (algorithm) {
-		case ASTAR:
-			// ...
-			plan = naivePlan(vehicle, tasks);
-			break;
-		case BFS:
-			// ...
-			plan = naivePlan(vehicle, tasks);
-			break;
-		default:
-			throw new AssertionError("Should not happen.");
-        }
-        return plan;
+        return new Solver(vehicle,tasks).execute(algorithm);
 	}
+
+
 	
 	private Plan naivePlan(Vehicle vehicle, TaskSet tasks) {
 		City current = vehicle.getCurrentCity();
