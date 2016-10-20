@@ -75,7 +75,7 @@ class StateNode {
                             TaskSet newAvailableTasks = TaskSet.copyOf(avalaibleTasks);
                             TaskSet newTakenTasks = TaskSet.copyOf(takenTasks);
                             newAvailableTasks.remove(t);
-                            newTakenTasks.remove(t);
+                            newTakenTasks.add(t);
 
                             result.add(new StateNode(currentCity, newAvailableTasks, newTakenTasks, trans, currentWeight + t.weight));
                         }
