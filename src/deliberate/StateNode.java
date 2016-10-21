@@ -45,10 +45,10 @@ class Solver {
 
     
 
-    public Plan execute(DeliberativeTemplate.Algorithm algo){
+    public synchronized Plan execute(DeliberativeTemplate.Algorithm algo){
 
         LinkedList<Transition> paths = new LinkedList<>();
-        paths.addAll(initialNode.generateSuccessors(null,this.vehicle.capacity(),this.vehicle.costPerKm()));
+        paths.addAll(initialNode.generateSuccessors(null,this.vehicle.capacity()));
 
         while(!paths.isEmpty()){
 
@@ -67,8 +67,8 @@ class Solver {
 
                 for(Transition t : paths){
 
-                    if(t.getCost() + t.heuristic() < minEstimatedCost){
-                        minEstimatedCost = t.getCost() + t.heuristic();
+                    if(t.getTotalTravel() + t.getState().heuristic() < minEstimatedCost){
+                        minEstimatedCost = t.getTotalTravel() + t.getState().heuristic();
                         minEstimatedId = i;
                         currentTransition = t;
                     }
@@ -92,7 +92,7 @@ class Solver {
             paths.addAll(
                     currentTransition
                             .getState()
-                            .generateSuccessors(currentTransition,this.vehicle.capacity(),this.vehicle.costPerKm())
+                            .generateSuccessors(currentTransition,this.vehicle.capacity())
             );
 
 
@@ -113,6 +113,7 @@ class StateNode {
     private City currentCity;
     private TaskSet availableTasks, takenTasks;
     private double currentWeight;
+    private double heuristic;
 
 
     public StateNode(
@@ -126,11 +127,37 @@ class StateNode {
         this.takenTasks = takenTasks;
         this.currentWeight = currentWeight;
 
+        Set<CityEdge> edges = new HashSet<>();
+        for(Task t : this.getAvailableTasks()){
+
+            City prevCity = t.pickupCity;
+
+            for(City c : t.pickupCity.pathTo(t.deliveryCity)){
+                edges.add(new CityEdge(prevCity, c));
+                prevCity = c;
+            }
+
+        }
+
+        this.heuristic = 0.0;
+        for(CityEdge c : edges){
+            this.heuristic += c.distance();
+        }
+
     }
 
 
     public static StateNode initialNode(City current, TaskSet avalaible) {
         return new StateNode(current, avalaible, TaskSet.noneOf(avalaible), 0);
+    }
+
+
+    /**
+     * @return the heuristic cost estimation to the goal state (under estimate)
+     *
+     */
+    public double heuristic(){
+        return heuristic;
     }
 
 
@@ -196,11 +223,11 @@ class StateNode {
      * Generate the next possible transitions from the current state
      * or a deliver action singleton if any
      */
-    public Set<Transition> generateSuccessors(Transition parent, final double maximumLoad, double costPerKm) {
+    public Set<Transition> generateSuccessors(Transition parent, final double maximumLoad) {
 
         Set<Transition> result = new HashSet<>();
 
-        double currentCost = parent != null ? parent.getCost() : 0;
+        double alreadyTraveled = parent != null ? parent.getTotalTravel() : 0;
 
         // DELIVER ____________________________________________
         for (Task t : this.getTakenTasks()) {
@@ -217,9 +244,9 @@ class StateNode {
                         newTakenTasks,
                         this.getVehicleWeight()-t.weight);
 
-                double cost = currentCost;
+                double newTotal = alreadyTraveled;
 
-                result.add(new Transition(toState, parent, Transition.Type.DELIVER, t, cost));
+                result.add(new Transition(toState, parent, Transition.Type.DELIVER, t, newTotal));
 
                 // in case we are able to deliver something
                 // this action will always be taken (0 cost + one passed subgoal)
@@ -244,9 +271,9 @@ class StateNode {
                         newTakenTasks,
                         this.getVehicleWeight()+t.weight);
 
-                double cost = currentCost;
+                double newTotal = alreadyTraveled;
 
-                result.add(new Transition(toState, parent, Transition.Type.PICKUP, t, cost));
+                result.add(new Transition(toState, parent, Transition.Type.PICKUP, t, newTotal));
             }
         }
 
@@ -265,9 +292,9 @@ class StateNode {
                     this.getTakenTasks(),
                     this.getVehicleWeight());
 
-            double cost = currentCost + this.getVehicleCity().distanceTo(toState.getVehicleCity())*costPerKm;
+            double newTotal = alreadyTraveled + this.getVehicleCity().distanceTo(toState.getVehicleCity());
 
-            result.add(new Transition(toState, parent, Transition.Type.MOVE, null, cost));
+            result.add(new Transition(toState, parent, Transition.Type.MOVE, null, newTotal));
         }
 
 
@@ -317,20 +344,24 @@ class Transition implements Comparable<Transition> {
     // track the last move
     private Type type;
 
-    // current cost
-    private double cost;
+    // km already cross
+    private double totalTravel;
 
     private Task task = null;
 
-    private Double heuristic = null;
 
 
+    public Transition(
+            StateNode state,
+            Transition predecessor,
+            Type type,
+            Task task,
+            double totalTravel){
 
-    public Transition(StateNode state, Transition predecessor, Type type, Task task, double cost){
         this.state = state;
         this.predecessor = predecessor;
         this.type = type;
-        this.cost = cost;
+        this.totalTravel = totalTravel;
         this.task = task;
     }
 
@@ -365,10 +396,10 @@ class Transition implements Comparable<Transition> {
     }
 
     /**
-     * @return the cost of all the transitions taken to arrives in this.getState
+     * @return the total km traveled to arrives in this.getState in this path
      */
-    public double getCost(){
-        return cost;
+    public double getTotalTravel(){
+        return totalTravel;
     }
 
 
@@ -393,44 +424,13 @@ class Transition implements Comparable<Transition> {
         return actions;
     }
 
-    /**
-     * @return the heuristic cost estimation to the goal state (under estimate)
-     *
-     */
-    public double heuristic(){
 
-        /**
-         * by storing the heuristic we make x10 speedup
-         */
-        if(heuristic != null){
-            return heuristic;
-        }
-
-        Set<CityEdge> edges = new HashSet<>();
-        for(Task t : this.getState().getAvailableTasks()){
-
-            City prevCity = t.pickupCity;
-
-            for(City c : t.pickupCity.pathTo(t.deliveryCity)){
-                edges.add(new CityEdge(prevCity, c));
-                prevCity = c;
-            }
-
-        }
-
-        this.heuristic = 0.0;
-        for(CityEdge c : edges){
-            this.heuristic += c.distance();
-        }
-
-        return this.heuristic;
-    }
 
 
     @Override
     public int compareTo(Transition that) {
-        double thatCost = that.cost + that.heuristic();
-        double thisCost = this.cost + this.heuristic();
+        double thatCost = that.totalTravel + that.getState().heuristic();
+        double thisCost = this.totalTravel + this.getState().heuristic();
         return thisCost > thatCost ? 1 :
                 thisCost == thatCost ? 0 :
                         -1;
