@@ -106,14 +106,13 @@ class Solver {
 
 
 
-
 class StateNode {
 
 
     private City currentCity;
     private TaskSet availableTasks, takenTasks;
     private double currentWeight;
-    private double heuristic;
+    private Double heuristic = null;
 
 
     public StateNode(
@@ -126,6 +125,24 @@ class StateNode {
         this.availableTasks = availableTasks;
         this.takenTasks = takenTasks;
         this.currentWeight = currentWeight;
+
+    }
+
+
+    public static StateNode initialNode(City current, TaskSet avalaible) {
+        return new StateNode(current, avalaible, TaskSet.noneOf(avalaible), 0);
+    }
+
+
+    /**
+     * @return the heuristic cost estimation to the goal state (under estimate)
+     *
+     */
+    public double heuristic(){
+
+        if(this.heuristic != null){
+            return this.heuristic;
+        }
 
         Set<CityEdge> edges = new HashSet<>();
         for(Task t : this.getAvailableTasks()){
@@ -144,20 +161,8 @@ class StateNode {
             this.heuristic += c.distance();
         }
 
-    }
 
-
-    public static StateNode initialNode(City current, TaskSet avalaible) {
-        return new StateNode(current, avalaible, TaskSet.noneOf(avalaible), 0);
-    }
-
-
-    /**
-     * @return the heuristic cost estimation to the goal state (under estimate)
-     *
-     */
-    public double heuristic(){
-        return heuristic;
+        return this.heuristic;
     }
 
 
