@@ -33,15 +33,20 @@ class Solver {
 
     private Plan convertToPlan(Transition transition){
 
-        List<Action> actions = new ArrayList<>();
-        City currCity = initialNode.getVehicleCity();
+        List<Transition> transitions = new ArrayList<>();
 
         do {
-            actions.addAll(transition.toAction(currCity));
-            currCity = transition.getState().getVehicleCity();
-        }while( (transition = transition.getPredecessor()) != null );
+            transitions.add(transition);
+        } while( (transition = transition.getPredecessor()) != null );
 
-        Collections.reverse(actions);
+        Collections.reverse(transitions);
+
+        List<Action> actions = new ArrayList<>();
+
+        for(Transition t : transitions){
+            actions.addAll(t.getActions()); // transition give shortest path in natural order
+        }
+        
 
         return new Plan(this.initialNode.getVehicleCity(),actions);
     }
@@ -351,17 +356,16 @@ class Transition implements Comparable<Transition> {
     /**
      * @return the coresponding action of the transition
      */
-    public List<Action> toAction(City fromCity){
+    public List<Action> getActions(){
 
         List<Action> actions = new ArrayList<>();
 
         switch(this.getType()){
             case PICKUP: actions.add(new Action.Pickup(this.getTask())); break;
             case MOVE :
-                for(City c : this.getPredecessor().getState().getVehicleCity().pathTo(fromCity)){
+                for(City c : this.getPredecessor().getState().getVehicleCity().pathTo(this.getState().getVehicleCity())){
                     actions.add(new Action.Move(c));
                 }
-                Collections.reverse(actions);
                 break;
             case DELIVER: actions.add(new Action.Delivery(this.getTask())); break;
         }
