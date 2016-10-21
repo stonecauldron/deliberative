@@ -10,9 +10,6 @@ import logist.topology.Topology.City;
 import java.util.*;
 
 
-
-
-
 class Solver {
 
 
@@ -33,25 +30,20 @@ class Solver {
 
     private Plan convertToPlan(Transition transition){
 
-        List<Transition> transitions = new ArrayList<>();
+        List<Action> actions = new ArrayList<>();
+        City currCity = initialNode.getVehicleCity();
 
         do {
-            transitions.add(transition);
-        } while( (transition = transition.getPredecessor()) != null );
+            actions.addAll(transition.toAction(currCity));
+            currCity = transition.getState().getVehicleCity();
+        }while( (transition = transition.getPredecessor()) != null );
 
-        Collections.reverse(transitions);
-
-        List<Action> actions = new ArrayList<>();
-
-        for(Transition t : transitions){
-            actions.addAll(t.getActions()); // transition give shortest path in natural order
-        }
-        
+        Collections.reverse(actions);
 
         return new Plan(this.initialNode.getVehicleCity(),actions);
     }
 
-
+    
 
     public Plan execute(DeliberativeTemplate.Algorithm algo){
 
@@ -60,7 +52,38 @@ class Solver {
 
         while(!paths.isEmpty()){
 
-            Transition currentTransition = paths.poll();
+            Transition currentTransition = null;
+
+            //_______________________________________________ NEXT TRANSITION
+            if(algo == DeliberativeTemplate.Algorithm.ASTAR){
+
+                /**
+                 * instead of sorting the all list we take min heuristic
+                 * and we remove the transition from the queue
+                 * ==> speedup x1.4
+                 */
+                double minEstimatedCost = Double.MAX_VALUE;
+                int i = 0, minEstimatedId = 0;
+
+                for(Transition t : paths){
+
+                    if(t.getCost() + t.heuristic() < minEstimatedCost){
+                        minEstimatedCost = t.getCost() + t.heuristic();
+                        minEstimatedId = i;
+                        currentTransition = t;
+                    }
+
+                    i++;
+                }
+
+                paths.remove(minEstimatedId);
+
+            }
+            else {
+                currentTransition = paths.poll();
+            }
+
+
 
             if(currentTransition.getState().isGoalNode()){
                 return convertToPlan(currentTransition);
@@ -72,10 +95,6 @@ class Solver {
                             .generateSuccessors(currentTransition,this.vehicle.capacity(),this.vehicle.costPerKm())
             );
 
-
-            if(algo == DeliberativeTemplate.Algorithm.ASTAR){
-                Collections.sort(paths);
-            }
 
         }
 
@@ -283,8 +302,6 @@ class StateNode {
 
 
 
-
-
 class Transition implements Comparable<Transition> {
 
     // three possible action
@@ -304,6 +321,8 @@ class Transition implements Comparable<Transition> {
     private double cost;
 
     private Task task = null;
+
+    private Double heuristic = null;
 
 
 
@@ -356,16 +375,17 @@ class Transition implements Comparable<Transition> {
     /**
      * @return the coresponding action of the transition
      */
-    public List<Action> getActions(){
+    public List<Action> toAction(City fromCity){
 
         List<Action> actions = new ArrayList<>();
 
         switch(this.getType()){
             case PICKUP: actions.add(new Action.Pickup(this.getTask())); break;
             case MOVE :
-                for(City c : this.getPredecessor().getState().getVehicleCity().pathTo(this.getState().getVehicleCity())){
+                for(City c : this.getPredecessor().getState().getVehicleCity().pathTo(fromCity)){
                     actions.add(new Action.Move(c));
                 }
+                Collections.reverse(actions);
                 break;
             case DELIVER: actions.add(new Action.Delivery(this.getTask())); break;
         }
@@ -375,8 +395,16 @@ class Transition implements Comparable<Transition> {
 
     /**
      * @return the heuristic cost estimation to the goal state (under estimate)
+     *
      */
     public double heuristic(){
+
+        /**
+         * by storing the heuristic we make x10 speedup
+         */
+        if(heuristic != null){
+            return heuristic;
+        }
 
         Set<CityEdge> edges = new HashSet<>();
         for(Task t : this.getState().getAvailableTasks()){
@@ -390,12 +418,12 @@ class Transition implements Comparable<Transition> {
 
         }
 
-        double minCost = 0.0;
+        this.heuristic = 0.0;
         for(CityEdge c : edges){
-            minCost += c.distance();
+            this.heuristic += c.distance();
         }
 
-        return minCost;
+        return this.heuristic;
     }
 
 
@@ -411,6 +439,20 @@ class Transition implements Comparable<Transition> {
     @Override
     public String toString(){
         return "(" + this.getState().getVehicleCity() + "/" +this.getType()+")";
+    }
+
+    @Override
+    public boolean equals(Object that) {
+        return that instanceof Transition
+                && ((Transition)that).getType() == this.getType()
+                && ((Transition)that).getState() == this.getState()
+                && ((Transition)that).getTask() == this.getTask();
+
+    }
+
+    @Override
+    public int hashCode() {
+        return this.type.ordinal() + 31*this.state.hashCode();
     }
 
 }
@@ -445,3 +487,4 @@ class CityEdge {
     }
 
 }
+

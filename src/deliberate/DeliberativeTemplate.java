@@ -47,7 +47,13 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 
 	@Override
 	public Plan plan(Vehicle vehicle, TaskSet tasks) {
+
+        long time1 = System.currentTimeMillis();
         Plan plan = new Solver(vehicle,tasks).execute(algorithm);
+        long time2 = System.currentTimeMillis();
+
+        System.out.println("duration : "+(time1-time2));
+
         return plan;
 	}
 
