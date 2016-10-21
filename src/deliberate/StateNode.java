@@ -56,7 +56,6 @@ class Solver {
         while(!paths.isEmpty()){
 
             Transition currentTransition = paths.poll();
-            System.out.println(currentTransition);
 
             if(currentTransition.getState().isGoalNode()){
                 return convertToPlan(currentTransition);
@@ -359,9 +358,10 @@ class Transition implements Comparable<Transition> {
         switch(this.getType()){
             case PICKUP: actions.add(new Action.Pickup(this.getTask())); break;
             case MOVE :
-                for(City c : this.getState().getVehicleCity().pathTo(fromCity)){
+                for(City c : this.getPredecessor().getState().getVehicleCity().pathTo(fromCity)){
                     actions.add(new Action.Move(c));
                 }
+                Collections.reverse(actions);
                 break;
             case DELIVER: actions.add(new Action.Delivery(this.getTask())); break;
         }
