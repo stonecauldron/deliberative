@@ -34,14 +34,21 @@ class Solver {
     private Plan convertToPlan(Transition transition){
 
         List<Action> actions = new ArrayList<>();
-        City currCity = initialNode.getVehicleCity();
 
+        boolean isDone = false;
         do {
-            actions.addAll(transition.toAction(currCity));
-            currCity = transition.getState().getVehicleCity();
-        }while( (transition = transition.getPredecessor()) != null );
+
+            List<Action> transActions = transition.getActions();
+            Collections.reverse(transActions);
+            actions.addAll(transActions);
+            isDone = !transition.hasPredecessor();
+            transition = transition.getPredecessor();
+
+        }while(!isDone);
+
 
         Collections.reverse(actions);
+        
 
         return new Plan(this.initialNode.getVehicleCity(),actions);
     }
@@ -304,7 +311,7 @@ class Transition implements Comparable<Transition> {
 
     public Transition(StateNode state, Transition predecessor, Type type, Task task, double cost){
         this.state = state;
-        this.predecessor = predecessor;
+        this.predecessor = predecessor != null ? predecessor : this;
         this.type = type;
         this.cost = cost;
         this.task = task;
@@ -347,21 +354,27 @@ class Transition implements Comparable<Transition> {
         return cost;
     }
 
+    /**
+     * @return true if the transition has a predecessor
+     */
+    public boolean hasPredecessor(){
+        return this != this.getPredecessor();
+    }
+
 
     /**
      * @return the coresponding action of the transition
      */
-    public List<Action> toAction(City fromCity){
+    public List<Action> getActions(){
 
         List<Action> actions = new ArrayList<>();
 
         switch(this.getType()){
             case PICKUP: actions.add(new Action.Pickup(this.getTask())); break;
             case MOVE :
-                for(City c : this.getPredecessor().getState().getVehicleCity().pathTo(fromCity)){
+                for(City c : this.getPredecessor().getState().getVehicleCity().pathTo(this.getState().getVehicleCity())){
                     actions.add(new Action.Move(c));
                 }
-                Collections.reverse(actions);
                 break;
             case DELIVER: actions.add(new Action.Delivery(this.getTask())); break;
         }
