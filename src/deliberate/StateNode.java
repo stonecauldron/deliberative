@@ -34,19 +34,52 @@ class Solver {
     }
 
 
+    private List<Action> shortestPathMove(City fromCity, City toCity){
+
+        List<Action> plan = new ArrayList<>();
+
+        for(City c : fromCity.pathTo(toCity)){
+            plan.add(new Action.Move(c));
+        }
+
+        return plan;
+    }
+
     private Plan convertToPlan(Transition transition){
 
-        List<Action> actions = new ArrayList<>();
-        City currCity = initialNode.getVehicleCity();
 
+        // retrieve path of transition from the goal state
+        List<Transition> transitions = new ArrayList<>();
         do {
-            actions.addAll(transition.toAction(currCity));
-            currCity = transition.getState().getVehicleCity();
-        }while( (transition = transition.getPredecessor()) != null );
+            transitions.add(transition);
+        }while((transition = transition.getPredecessor()) != null);
+        // reverse to get the transition in natural order
+        Collections.reverse(transitions);
 
-        Collections.reverse(actions);
 
-        return new Plan(this.initialNode.getVehicleCity(),actions);
+        // now compile the all plan
+        List<Action> plan = new ArrayList<>();
+        City lastCity = initialNode.getVehicleCity();
+
+        for(Transition t : transitions){
+
+            switch(t.getType()){
+                case MOVE :
+                    plan.addAll(shortestPathMove(lastCity,t.getState().getVehicleCity()));
+                    break;
+                case PICKUP:
+                    plan.add(new Action.Pickup(t.getTask()));
+                    break;
+                case DELIVER:
+                    plan.add(new Action.Delivery(t.getTask()));
+                    break;
+            }
+
+            lastCity = t.getState().getVehicleCity();
+        }
+
+
+        return new Plan(this.initialNode.getVehicleCity(),plan);
     }
 
     
@@ -412,29 +445,6 @@ class Transition implements Comparable<Transition> {
     public double getTotalTravel(){
         return totalTravel;
     }
-
-
-    /**
-     * @return the coresponding action of the transition
-     */
-    public List<Action> toAction(City fromCity){
-
-        List<Action> actions = new ArrayList<>();
-
-        switch(this.getType()){
-            case PICKUP: actions.add(new Action.Pickup(this.getTask())); break;
-            case MOVE :
-                for(City c : this.getPredecessor().getState().getVehicleCity().pathTo(fromCity)){
-                    actions.add(new Action.Move(c));
-                }
-                Collections.reverse(actions);
-                break;
-            case DELIVER: actions.add(new Action.Delivery(this.getTask())); break;
-        }
-
-        return actions;
-    }
-
 
 
 

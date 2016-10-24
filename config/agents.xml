@@ -9,5 +9,11 @@
         <set class-name="deliberate.DeliberativeTemplate"/>
 		<set algorithm="ASTAR"/>
 	</agent>
-	
+
+    <agent name="deliberative-main2">
+        <set class-path="bin/"/>
+        <set class-name="deliberate.DeliberativeTemplate"/>
+        <set algorithm="ASTAR"/>
+    </agent>
+
 </agents>
