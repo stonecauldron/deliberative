@@ -27,6 +27,12 @@ class Solver {
         this.vehicle = vehicle;
     }
 
+    public Solver(Vehicle vehicle, TaskSet all, TaskSet carried) {
+        TaskSet remainingTasks = TaskSet.intersectComplement(all, carried);
+        this.initialNode = new StateNode(vehicle.getCurrentCity(), remainingTasks, carried, carried.weightSum());
+        this.vehicle = vehicle;
+    }
+
 
     private Plan convertToPlan(Transition transition){
 

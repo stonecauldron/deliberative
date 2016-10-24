@@ -25,8 +25,8 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 	private Agent agent;
 	/* the planning class */
 	private Algorithm algorithm;
-
-
+    // the tasks that the agent is carrying (useful when new plan needs to be generated)
+    private TaskSet carrying;
 
 	@Override
 	public void setup(Topology topology, TaskDistribution td, Agent agent) {
@@ -48,9 +48,8 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 	@Override
 	public Plan plan(Vehicle vehicle, TaskSet tasks) {
 
-        Plan plan = new Solver(vehicle,tasks).execute(algorithm);
-
-        return plan;
+        return carrying==null? new Solver(vehicle, tasks).execute(algorithm):
+                new Solver(vehicle, tasks, carrying).execute(algorithm);
 	}
 
 
@@ -85,6 +84,7 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 			// This cannot happen for this simple agent, but typically
 			// you will need to consider the carriedTasks when the next
 			// plan is computed.
+            carrying = carriedTasks;
 		}
 	}
 
