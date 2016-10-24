@@ -3,6 +3,7 @@
 \usepackage{amsmath}
 \usepackage{textcomp}
 \usepackage{mathtools}
+\usepackage[a4paper]{geometry}
 
 % Add other packages here %
 
@@ -59,13 +60,23 @@ An agent can do the following actions:
 
 \subsection{BFS}
 % Details of the BFS implementation %
+BFS is implemented in the Solver class in the execute method. It generates
+successors beginning in the initial node and visits every one of them before
+generating new succesors. It stops as soon as it find a goal node.
 
 \subsection{A*}
 % Details of the A* implementation %
+A* is also implemented in the Solver in the execute method. It generates the
+successors of the visited node with the lowest estimated cost.
 
 \subsection{Heuristic Function}
 % Details of the heuristic functions: main idea, optimality, admissibility %
-
+The heuristic considers the minimal distance required to transport every task
+from its origin to the destination while only counting each route once i.e. no
+backtracks. This models a vehicle with infinite capacity. Since agents do not
+have infinite carrying capacity the possibility of backtracking exists and thus
+the heuristic underestimates the true cost, meaning that it will always find an
+optimal solution.
 
 \section{Results}
 
@@ -75,18 +86,48 @@ An agent can do the following actions:
 
 \subsubsection{Setting}
 % Describe the settings of your experiment: topology, task configuration, etc. %
+\begin{itemize}
+\item Topology: Switzerland
+\item Task distribution: constant
+\item Weight distribution: constant
+\end{itemize}
 
 \subsubsection{Observations}
 % Describe the experimental results and the conclusions you inferred from these results %
+BFS runs out of memory as soons as the number of tasks exceeds 6, the agent does
+not even manage to compute a plan. This is understandable since in BFS there is
+a combinatorial explosion of states to explore. With more than 7 tasks A* plan
+computation takes more than one minute, but its memory consumption is far lower
+than BFS since it only generates succesors for states that seem promising.
 
+BFS only computes the plan with the least number of actions needed to get to the
+goal state; there is no guarantee about optimality in relation to the distance
+travelled.
+
+A* is guaranteed to find the optimal solution as long as the heuristic function
+underestimates the true cost. We can see this easily by imagining an heuristic
+that always returns 0: A* will always follow the nodes with the current lowest
+cost and so the first goal state node it finds will be the optimal one. The
+whole challenge lies in finding an heuristic that is close to the true cost as
+this improves the overall efficiency of the algorithm.
 
 \subsection{Experiment 2: Multi-agent Experiments}
 % Observations in multi-agent experiments %
 
 \subsubsection{Setting}
 % Describe the settings of your experiment: topology, task configuration, etc. %
+\begin{itemize}
+\item Topology: Switzerland
+\item Task distribution: constant
+\item Weight distribution: constant
+\end{itemize}
 
 \subsubsection{Observations}
 % Describe the experimental results and the conclusions you inferred from these results %
+With only one agent the reward stabilizes at 180 units while with multiple
+agents it averages at a value of 100 units. This is understandable since there
+is no coordination between the agents, they interfere with each other's plans.
+Each time a plan must be recomputed it means that the agent made an unprofitable
+move that could have been prevented if the agents communicated.
 
 \end{document}
